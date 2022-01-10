@@ -55,7 +55,8 @@ data KeywordToken
 
 data BaseToken = Single SingleCharToken | Multi MultiCharToken | Lit LitToken | Key KeywordToken | EOF deriving (Show, Eq)
 
-data Token = Token BaseToken Text Text deriving (Eq)
+-- tokentype, lexeme, literal, line
+data Token = Token BaseToken Text (Maybe Text) Int deriving (Eq)
 
 instance Show Token where
-  show (Token tokenType lexeme literal) = toString $ (toText . Prelude.show) tokenType <> " " <> lexeme <> " " <> literal
+  show (Token tokenType lexeme literal _) = toString $ (toText . Prelude.show) tokenType <> " " <> lexeme <> " " <> toText (Prelude.show literal)

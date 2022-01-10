@@ -30,7 +30,7 @@ replParser = pure Prompt
 runFile :: FilePath -> IO ()
 runFile path = do
   contents <- readFile path
-  run contents
+  run (toText contents)
 
 runPrompt :: IO ()
 runPrompt = do
@@ -38,5 +38,5 @@ runPrompt = do
   input <- getLine
   if input == "" then pure () else run input >> runPrompt
 
-run :: Show s => s -> IO ()
+run :: Text -> IO ()
 run = print . scanTokens
