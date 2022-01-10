@@ -27,6 +27,7 @@ library
   exposed-modules:
       Lib
       Lox.Scanner
+      Lox.Token
       Util
   other-modules:
       Paths_haskell

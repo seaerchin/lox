@@ -1,10 +1,9 @@
 module Lox.Scanner where
 
+import Lox.Token
 import Relude
 import System.IO (hPutStrLn)
 import Util
-
-data Token = Token deriving (Eq, Show)
 
 data Position = Pos
   { line :: Int,
