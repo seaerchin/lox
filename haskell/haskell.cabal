@@ -26,6 +26,8 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Lox.Scanner
+      Util
   other-modules:
       Paths_haskell
   hs-source-dirs:
