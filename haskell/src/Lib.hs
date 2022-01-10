@@ -1,14 +1,12 @@
 module Lib where
 
+import Lox.Scanner
 import Options.Applicative (Alternative ((<|>)), Parser, execParser, helper, (<**>))
 import Options.Applicative.Builder
 import Relude
+import Util
 
 data Entry = File Text | Prompt deriving (Show, Eq)
-
--- utility functions for easy lookup
-todo :: Text -> a
-todo msg = error ("TODO: " <> msg)
 
 -- exec is the main entrypoint into lox
 exec :: IO ()
@@ -28,3 +26,17 @@ sourceFileParser = argument (File <$> str) (metavar "FILENAME")
 -- nothing to parse
 replParser :: Parser Entry
 replParser = pure Prompt
+
+runFile :: FilePath -> IO ()
+runFile path = do
+  contents <- readFile path
+  run contents
+
+runPrompt :: IO ()
+runPrompt = do
+  putStr "> "
+  input <- getLine
+  if input == "" then pure () else run input >> runPrompt
+
+run :: Show s => s -> IO ()
+run = print . scanTokens
