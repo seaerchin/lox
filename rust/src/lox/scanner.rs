@@ -100,14 +100,7 @@ impl<'a> Scanner<'a> {
             }
             // need to parse to check if it is comment or not
             '/' => {
-                // we have a comment - consume everything until we hit EOL
-                if self.matches('/') {
-                    while self.peek() != '\n' && !self.is_at_end() {
-                        self.advance();
-                    }
-                } else {
-                    self.add_token_with_none_lit(TokenType::SLASH)
-                }
+                self.slash();
             }
             // ignore whitespace
             ' ' | '\r' | '\t' => (),
@@ -123,8 +116,7 @@ impl<'a> Scanner<'a> {
         Ok(())
     }
 
-    // TODO: add support for c style blocks
-    fn slash(&mut self) {
+    fn slash(&mut self) -> ScannerResult<()> {
         // we entered a block comment area
         if self.matches('*') {
             // consume the *
@@ -141,17 +133,34 @@ impl<'a> Scanner<'a> {
         } else {
             self.add_token_with_none_lit(TokenType::SLASH)
         }
+
+        Ok(())
     }
 
     // we need to consume everything until we hit exactly */
-    fn block_comment(&mut self) {
-        while self.peek() != '*' && self.peek_next() != '/' {
+    fn block_comment(&mut self) -> ScannerResult<()> {
+        while self.current + 2 < self.source.len()
+            && self.peek() != '*'
+            && self.peek_next() != '/'
+            && !self.is_at_end()
+        {
             if self.peek() == '\n' {
                 // increment when we hit newline
                 self.line = self.line + 1;
             }
             self.advance();
         }
+
+        // we require at minimum 2 characters beyond our current index
+        // for the terminating */ if we are unable to fulfill this,
+        // fail gracefully and report the error back to the user.
+        if self.current + 2 >= self.source.len() {
+            return Err(error::error(self.line, "Unable to parse block comment"));
+        }
+
+        self.advance();
+        self.advance();
+        Ok(())
     }
 
     fn ident(&mut self) {
@@ -191,7 +200,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn peek_next(&self) -> char {
-        if self.current + 1 > self.source.len() {
+        if self.current + 1 >= self.source.len() {
             return '\0';
         } else {
             self.source.chars().nth(self.current + 1).unwrap()
@@ -227,11 +236,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn matches(&self, c: char) -> bool {
-        let next_idx = self.current + 1;
-        self.source
-            .chars()
-            .nth(next_idx)
-            .map_or(false, |next| next == c)
+        self.peek() == c
     }
 
     pub fn scan_tokens(mut self) -> (Vec<Token>, Vec<DynErr>) {

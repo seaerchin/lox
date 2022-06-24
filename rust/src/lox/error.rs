@@ -8,7 +8,7 @@ pub fn error(line: usize, message: &str) -> Box<dyn Error> {
 }
 
 fn report(line: usize, where_error: &str, message: &str) -> Box<dyn Error> {
-    let message = format!("[line: {line}] Error {where_error}: ${message}");
+    let message = format!("\n[line: {line}] Error {where_error}: ${message}\n");
     stderr()
         .write(message.as_bytes())
         .expect("something went wrong while trying to write to stderr");
