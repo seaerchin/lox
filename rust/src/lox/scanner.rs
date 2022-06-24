@@ -108,7 +108,6 @@ impl<'a> Scanner<'a> {
                 } else {
                     self.add_token_with_none_lit(TokenType::SLASH)
                 }
-                todo!()
             }
             // ignore whitespace
             ' ' | '\r' | '\t' => (),
@@ -122,6 +121,37 @@ impl<'a> Scanner<'a> {
         }
 
         Ok(())
+    }
+
+    // TODO: add support for c style blocks
+    fn slash(&mut self) {
+        // we entered a block comment area
+        if self.matches('*') {
+            // consume the *
+            self.advance();
+            // keep advancing until we hit the last */
+            return self.block_comment();
+        }
+
+        // we have a comment - consume everything until we hit EOL
+        if self.matches('/') {
+            while self.peek() != '\n' && !self.is_at_end() {
+                self.advance();
+            }
+        } else {
+            self.add_token_with_none_lit(TokenType::SLASH)
+        }
+    }
+
+    // we need to consume everything until we hit exactly */
+    fn block_comment(&mut self) {
+        while self.peek() != '*' && self.peek_next() != '/' {
+            if self.peek() == '\n' {
+                // increment when we hit newline
+                self.line = self.line + 1;
+            }
+            self.advance();
+        }
     }
 
     fn ident(&mut self) {
