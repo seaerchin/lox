@@ -1,7 +1,12 @@
 #[derive(Debug)]
-pub struct Literal {}
+// A literal can only exist as one of a few different variants
+pub enum Literal {
+    Number(f64),
+    String(String),
+    None,
+}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TokenType {
     // takes source, literal, line
     // Single character tokens
@@ -50,18 +55,19 @@ pub enum TokenType {
     EOF,
 }
 
-pub struct Token<'a> {
+#[derive(Debug)]
+pub struct Token {
     token_type: TokenType,
-    lexeme: &'a str,
+    lexeme: String,
     literal: Literal,
-    line: i32,
+    line: usize,
 }
 
-impl<'a> Token<'a> {
-    pub fn new(token_type: TokenType, lexeme: &'a str, literal: Literal, line: i32) -> Self {
+impl Token {
+    pub fn new(token_type: TokenType, lexeme: &str, literal: Literal, line: usize) -> Self {
         Token {
             token_type,
-            lexeme,
+            lexeme: lexeme.to_owned(),
             literal,
             line,
         }
@@ -69,8 +75,8 @@ impl<'a> Token<'a> {
 
     pub fn to_string(&self) -> String {
         let tt = &self.token_type;
-        let lex = self.lexeme;
+        let lex = &self.lexeme;
         let lit = &self.literal;
-        return format!("{:#?} {lex} {:#?}", tt, lit);
+        return format!("{}: {:#?} {lex} {:#?}", self.line, tt, lit);
     }
 }

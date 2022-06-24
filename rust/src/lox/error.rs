@@ -3,11 +3,11 @@ use std::{
     io::{stderr, Error as IoError, ErrorKind, Write},
 };
 
-pub fn error(line: i32, message: &str) -> Box<dyn Error> {
+pub fn error(line: usize, message: &str) -> Box<dyn Error> {
     report(line, "", message)
 }
 
-fn report(line: i32, where_error: &str, message: &str) -> Box<dyn Error> {
+fn report(line: usize, where_error: &str, message: &str) -> Box<dyn Error> {
     let message = format!("[line: {line}] Error {where_error}: ${message}");
     stderr()
         .write(message.as_bytes())
