@@ -1,11 +1,25 @@
 use std::fmt::Display;
 
+use crate::token::Token;
+
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum ExprType {
     Literal(RawLiteral),
     Grouping(Box<Expr>),
     Unary(UnaryOp, Box<Expr>),
     Binary(Box<Expr>, Op, Box<Expr>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub expr: ExprType,
+    token: Token,
+}
+
+impl Expr {
+    pub fn new(expr: ExprType, token: Token) -> Self {
+        Expr { expr, token }
+    }
 }
 
 #[derive(Debug, Clone)]

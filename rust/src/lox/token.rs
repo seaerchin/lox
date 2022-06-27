@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use crate::expr::Expr;
+
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 // A literal can only exist as one of a few different variants
 pub enum Literal {
     Number(f64),
@@ -6,7 +8,7 @@ pub enum Literal {
     None,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum TokenType {
     // takes source, literal, line
     // Single character tokens
@@ -55,12 +57,12 @@ pub enum TokenType {
     EOF,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    literal: Literal,
-    line: usize,
+    pub token_type: TokenType,
+    pub lexeme: String,
+    pub literal: Literal,
+    pub line: usize,
 }
 
 impl Token {
@@ -78,5 +80,11 @@ impl Token {
         let lex = &self.lexeme;
         let lit = &self.literal;
         return format!("{}: {:#?} {lex} {:#?}", self.line, tt, lit);
+    }
+}
+
+impl Into<Expr> for Token {
+    fn into(self) -> Expr {
+        todo!()
     }
 }
