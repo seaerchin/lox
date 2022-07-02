@@ -31,10 +31,14 @@ impl Parser {
     // they only differ in matches and subsequent method called ._.
     // this would also be alot easier if we could just pass in a function
     fn eq(&mut self) -> Expr {
+        println!("Testing");
         let left = self.comparison();
         let eq_op = self
             .extract(TokenType::BANG_EQUAL)
             .or(self.extract(TokenType::EQUAL_EQUAL));
+
+        // never hits
+        println!("current index: {}", self.cur);
         // we can only terminate once there is no comparison operator matched
         // otherwise, we have to traverse the structure recursively until we hit the above condition
         match eq_op {
@@ -76,6 +80,9 @@ impl Parser {
         let factor_op = self
             .extract(TokenType::PLUS)
             .or(self.extract(TokenType::MINUS));
+
+        println!("CURRENT EXPR: {:#?}", left);
+
         match factor_op {
             Some(token) => {
                 let right = self.factor();
@@ -125,20 +132,36 @@ impl Parser {
             // if we hit EOF, the current token must be valid
             self.source[self.cur as usize].line,
         ));
-        let matched = self
+        let _matched = self
             .extract(TokenType::NUMBER)
             .or(self.extract(TokenType::STRING))
             .or(self.extract(TokenType::TRUE))
             .or(self.extract(TokenType::FALSE))
             .or(self.extract(TokenType::NIL))
             .or(self.extract(TokenType::LEFT_PAREN))
-            .expect(&parse_error(peeked, "Expect expression").to_string());
+            .or(self.extract(TokenType::EOF));
+
+        println!("{:#?}", _matched);
+        // .unwrap_or_else(|| {
+        //     parse_error(
+        //         &peeked,
+        //         &format!("Expect expression at {} but got {:#?}", self.cur, peeked),
+        //     )
+        //     .to_string();
+        //     peeked
+        // });
+
+        let matched = _matched.unwrap();
 
         match matched.token_type {
             TokenType::LEFT_PAREN => {
                 let expr = self.expr();
                 self.extract(TokenType::RIGHT_PAREN).expect(
-                    "Expected to find a right parenthesis to match the opening parenthesis",
+                    &parse_error(
+                        &matched,
+                        "Expected to find a right parenthesis to match the opening parenthesis",
+                    )
+                    .to_string(),
                 );
                 expr
             }
@@ -161,18 +184,25 @@ impl Parser {
             TokenType::FALSE => Expr::new(ExprType::Literal(RawLiteral::False), matched),
             TokenType::NIL => Expr::new(ExprType::Literal(RawLiteral::Nil), matched),
             TokenType::TRUE => Expr::new(ExprType::Literal(RawLiteral::True), matched),
+            TokenType::EOF => Expr::new(
+                ExprType::Literal(RawLiteral::String("EOF".to_string())),
+                matched,
+            ),
             _ => panic!(),
         }
     }
 
-    fn extract(&mut self, tokType: TokenType) -> Option<Token> {
-        let cur = self.source.get((self.cur + 1) as usize).unwrap().clone();
-        if cur.token_type == tokType {
-            self.advance();
-            Some(cur)
-        } else {
-            None
+    fn extract(&mut self, tok_type: TokenType) -> Option<Token> {
+        if let Some(cur) = self.source.get((self.cur) as usize).map(|x| x.clone()) {
+            if cur.token_type == tok_type {
+                println!("CURRENT ONE IS: {:#?}", cur);
+                self.cur += 1;
+                return Some(cur);
+            } else {
+                return None;
+            }
         }
+        None
     }
 
     fn advance(&mut self) {

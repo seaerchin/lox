@@ -18,7 +18,7 @@ fn report(line: usize, where_error: &str, message: &str) -> Box<dyn Error> {
     Box::new(IoError::new(ErrorKind::InvalidData, message))
 }
 
-pub fn parse_error(token: Token, message: &str) -> Box<dyn Error> {
+pub fn parse_error(token: &Token, message: &str) -> Box<dyn Error> {
     if token.token_type == TokenType::EOF {
         report(token.line, " at end", message)
     } else {
