@@ -224,6 +224,43 @@ impl Parser {
     fn peek(&self) -> Option<&Token> {
         return self.source.get((self.cur + 1) as usize);
     }
+
+    fn advance(&mut self) -> Option<Token> {
+        if self.peek().is_some() {
+            self.cur += 1;
+            return Some(self.previous());
+        }
+        None
+    }
+
+    fn previous(&self) -> Token {
+        self.source[(self.cur - 1) as usize].clone()
+    }
+
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while self.peek().is_some() {
+            if self.previous().token_type == TokenType::SEMICOLON {
+                return;
+            }
+
+            let next_token = self.peek().unwrap().token_type;
+
+            if next_token == TokenType::CLASS
+                || next_token == TokenType::FUN
+                || next_token == TokenType::VAR
+                || next_token == TokenType::FOR
+                || next_token == TokenType::IF
+                || next_token == TokenType::WHILE
+                || next_token == TokenType::PRINT
+                || next_token == TokenType::RETURN
+            {
+                return;
+            }
+            self.advance();
+        }
+    }
 }
 
 // should have structured this better but the book uses an extremely oop style
