@@ -1,7 +1,5 @@
-use std::{collections::HashMap, error::Error, hash::Hash};
-
 use crate::{
-    error,
+    error::{self, DynErr},
     token::{Literal, Token, TokenType},
 };
 
@@ -13,7 +11,6 @@ pub struct Scanner<'a> {
     tokens: Vec<Token>,
 }
 
-pub type DynErr = Box<dyn Error>;
 pub type ScannerResult<T> = Result<T, DynErr>;
 
 impl<'a> Scanner<'a> {
@@ -100,7 +97,7 @@ impl<'a> Scanner<'a> {
             }
             // need to parse to check if it is comment or not
             '/' => {
-                self.slash();
+                let _ = self.slash();
             }
             // ignore whitespace
             ' ' | '\r' | '\t' => (),

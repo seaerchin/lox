@@ -1,7 +1,7 @@
 use core::panic;
 
 use crate::{
-    error::parse_error,
+    error::{parse_error, DynErr},
     expr::{Expr, ExprType, Op, RawLiteral, UnaryOp},
     token::{Literal, Token, TokenType},
 };
@@ -14,103 +14,118 @@ pub struct Parser {
     cur: u32,
 }
 
+type ParserResult<T> = Result<T, DynErr>;
+
 impl Parser {
     pub fn new(source: Vec<Token>) -> Self {
         Parser { source, cur: 0 }
     }
 
-    pub fn parse(&mut self) -> Expr {
+    pub fn parse(&mut self) -> ParserResult<Expr> {
         return self.expr();
     }
 
-    fn expr(&mut self) -> Expr {
+    fn expr(&mut self) -> ParserResult<Expr> {
         self.eq()
     }
 
     // TODO: simplify all this code
     // they only differ in matches and subsequent method called ._.
     // this would also be alot easier if we could just pass in a function
-    fn eq(&mut self) -> Expr {
-        println!("Testing");
-        let left = self.comparison();
-        let eq_op = self
-            .extract(TokenType::BANG_EQUAL)
-            .or(self.extract(TokenType::EQUAL_EQUAL));
+    fn eq(&mut self) -> ParserResult<Expr> {
+        self.comparison().and_then(|left| {
+            let eq_op = self
+                .extract(TokenType::BANG_EQUAL)
+                .or(self.extract(TokenType::EQUAL_EQUAL));
 
-        // never hits
-        println!("current index: {}", self.cur);
-        // we can only terminate once there is no comparison operator matched
-        // otherwise, we have to traverse the structure recursively until we hit the above condition
-        match eq_op {
-            Some(token) => {
-                let right = self.eq();
-                let op_expr = if token.token_type == TokenType::BANG_EQUAL {
-                    Op::NotEq
-                } else {
-                    Op::EqEq
-                };
-                let bin_expr = ExprType::Binary(Box::new(left), op_expr, Box::new(right));
-                Expr::new(bin_expr, token)
+            // we can only terminate once there is no comparison operator matched
+            // otherwise, we have to traverse the structure recursively until we hit the above condition
+            match eq_op {
+                Some(token) => {
+                    let right = self.eq().map(|right| {
+                        let op_expr = if token.token_type == TokenType::BANG_EQUAL {
+                            Op::NotEq
+                        } else {
+                            Op::EqEq
+                        };
+                        let bin_expr = ExprType::Binary(Box::new(left), op_expr, Box::new(right));
+                        Expr::new(bin_expr, token)
+                    });
+                    return right;
+                }
+                None => return Ok(left),
             }
-            None => left,
-        }
+        })
     }
 
-    fn comparison(&mut self) -> Expr {
-        let left = self.term();
-        // This is horrendously written but we basically keep trying until we get something that succeeds...
-        let comp_op = self
-            .extract(TokenType::GREATER)
-            .or(self.extract(TokenType::GREATER_EQUAL))
-            .or(self.extract(TokenType::LESS))
-            .or(self.extract(TokenType::LESS_EQUAL));
-        match comp_op {
-            Some(token) => {
-                let right = self.eq();
-                let comp_expr = convert_op(token.clone());
-                let bin_expr = ExprType::Binary(Box::new(left), comp_expr, Box::new(right));
-                Expr::new(bin_expr, token)
+    fn comparison(&mut self) -> ParserResult<Expr> {
+        self.term().and_then(|left| {
+            // This is horrendously written but we basically keep trying until we get something that succeeds...
+            let comp_op = self
+                .extract(TokenType::GREATER)
+                .or(self.extract(TokenType::GREATER_EQUAL))
+                .or(self.extract(TokenType::LESS))
+                .or(self.extract(TokenType::LESS_EQUAL));
+            match comp_op {
+                Some(token) => self.eq().and_then(|right| {
+                    let comp_expr = convert_op(token.clone());
+                    let bin_expr = ExprType::Binary(Box::new(left), comp_expr, Box::new(right));
+                    Ok(Expr::new(bin_expr, token))
+                }),
+                None => Ok(left),
             }
-            None => left,
-        }
+        })
     }
 
-    fn term(&mut self) -> Expr {
+    fn term(&mut self) -> ParserResult<Expr> {
         let left = self.factor();
-        let factor_op = self
-            .extract(TokenType::PLUS)
-            .or(self.extract(TokenType::MINUS));
+        if let Ok(left) = left {
+            let factor_op = self
+                .extract(TokenType::PLUS)
+                .or(self.extract(TokenType::MINUS));
 
-        println!("CURRENT EXPR: {:#?}", left);
-
-        match factor_op {
-            Some(token) => {
-                let right = self.factor();
-                let factor_expr = convert_op(token.clone());
-                let bin_expr = ExprType::Binary(Box::new(left), factor_expr, Box::new(right));
-                Expr::new(bin_expr, token)
+            match factor_op {
+                Some(token) => {
+                    let right = self.factor();
+                    if let Ok(right) = right {
+                        let factor_expr = convert_op(token.clone());
+                        let bin_expr =
+                            ExprType::Binary(Box::new(left), factor_expr, Box::new(right));
+                        return Ok(Expr::new(bin_expr, token));
+                    }
+                    return right;
+                }
+                None => return Ok(left),
             }
-            None => left,
         }
+        return left;
     }
 
-    fn factor(&mut self) -> Expr {
+    fn factor(&mut self) -> ParserResult<Expr> {
         let left = self.unary();
-        let factor_op = self
-            .extract(TokenType::SLASH)
-            .or(self.extract(TokenType::STAR));
-        match factor_op {
-            Some(token) => {
-                let right = self.unary();
-                let factor_expr = convert_op(token.clone());
-                let bin_expr = ExprType::Binary(Box::new(left), factor_expr, Box::new(right));
-                Expr::new(bin_expr, token)
+        if let Ok(left) = left {
+            let factor_op = self
+                .extract(TokenType::SLASH)
+                .or(self.extract(TokenType::STAR));
+            match factor_op {
+                Some(token) => {
+                    let right = self.unary();
+                    let factor_expr = convert_op(token.clone());
+                    if let Ok(right) = right {
+                        let bin_expr =
+                            ExprType::Binary(Box::new(left), factor_expr, Box::new(right));
+                        return Ok(Expr::new(bin_expr, token));
+                    }
+                    // we encountered error on right side but not on left
+                    return right;
+                }
+                None => return Ok(left),
             }
-            None => left,
         }
+        return left;
     }
 
-    fn unary(&mut self) -> Expr {
+    fn unary(&mut self) -> ParserResult<Expr> {
         let unary_factor = self
             .extract(TokenType::BANG)
             .or(self.extract(TokenType::MINUS));
@@ -118,13 +133,17 @@ impl Parser {
             Some(token) => {
                 let unary = convert_unary_op(token.clone());
                 let expr = self.unary();
-                Expr::new(ExprType::Unary(unary, Box::new(expr)), token)
+                if let Ok(expr) = expr {
+                    return Ok(Expr::new(ExprType::Unary(unary, Box::new(expr)), token));
+                }
+                // error branch; just propagate upwards
+                return expr;
             }
             None => self.primary(),
         }
     }
 
-    fn primary(&mut self) -> Expr {
+    fn primary(&mut self) -> ParserResult<Expr> {
         let peeked = self.peek().map(|x| x.clone()).unwrap_or(Token::new(
             TokenType::EOF,
             "",
@@ -132,42 +151,40 @@ impl Parser {
             // if we hit EOF, the current token must be valid
             self.source[self.cur as usize].line,
         ));
-        let _matched = self
+        let matched = self
             .extract(TokenType::NUMBER)
             .or(self.extract(TokenType::STRING))
             .or(self.extract(TokenType::TRUE))
             .or(self.extract(TokenType::FALSE))
             .or(self.extract(TokenType::NIL))
             .or(self.extract(TokenType::LEFT_PAREN))
-            .or(self.extract(TokenType::EOF));
-
-        println!("{:#?}", _matched);
-        // .unwrap_or_else(|| {
-        //     parse_error(
-        //         &peeked,
-        //         &format!("Expect expression at {} but got {:#?}", self.cur, peeked),
-        //     )
-        //     .to_string();
-        //     peeked
-        // });
-
-        let matched = _matched.unwrap();
+            .or(self.extract(TokenType::EOF))
+            .unwrap_or_else(|| {
+                parse_error(
+                    &peeked,
+                    &format!("Expect expression at {} but got {:#?}", self.cur, peeked),
+                )
+                .to_string();
+                peeked
+            });
 
         match matched.token_type {
             TokenType::LEFT_PAREN => {
                 let expr = self.expr();
-                self.extract(TokenType::RIGHT_PAREN).expect(
-                    &parse_error(
-                        &matched,
-                        "Expected to find a right parenthesis to match the opening parenthesis",
-                    )
-                    .to_string(),
-                );
-                expr
+                if let Some(_) = self.extract(TokenType::RIGHT_PAREN) {
+                    return expr;
+                }
+                Err(parse_error(
+                    &matched,
+                    "Expected to find a right parenthesis to match the opening parenthesis",
+                ))
             }
             TokenType::STRING => {
                 if let Literal::String(s) = &matched.literal {
-                    Expr::new(ExprType::Literal(RawLiteral::String(s.to_owned())), matched)
+                    Ok(Expr::new(
+                        ExprType::Literal(RawLiteral::String(s.to_owned())),
+                        matched,
+                    ))
                 } else {
                     // impossible case
                     panic!()
@@ -175,19 +192,19 @@ impl Parser {
             }
             TokenType::NUMBER => {
                 if let Literal::Number(n) = matched.literal {
-                    Expr::new(ExprType::Literal(RawLiteral::Number(n)), matched)
+                    Ok(Expr::new(ExprType::Literal(RawLiteral::Number(n)), matched))
                 } else {
                     // impossible case
                     panic!()
                 }
             }
-            TokenType::FALSE => Expr::new(ExprType::Literal(RawLiteral::False), matched),
-            TokenType::NIL => Expr::new(ExprType::Literal(RawLiteral::Nil), matched),
-            TokenType::TRUE => Expr::new(ExprType::Literal(RawLiteral::True), matched),
-            TokenType::EOF => Expr::new(
+            TokenType::FALSE => Ok(Expr::new(ExprType::Literal(RawLiteral::False), matched)),
+            TokenType::NIL => Ok(Expr::new(ExprType::Literal(RawLiteral::Nil), matched)),
+            TokenType::TRUE => Ok(Expr::new(ExprType::Literal(RawLiteral::True), matched)),
+            TokenType::EOF => Ok(Expr::new(
                 ExprType::Literal(RawLiteral::String("EOF".to_string())),
                 matched,
-            ),
+            )),
             _ => panic!(),
         }
     }
@@ -195,7 +212,6 @@ impl Parser {
     fn extract(&mut self, tok_type: TokenType) -> Option<Token> {
         if let Some(cur) = self.source.get((self.cur) as usize).map(|x| x.clone()) {
             if cur.token_type == tok_type {
-                println!("CURRENT ONE IS: {:#?}", cur);
                 self.cur += 1;
                 return Some(cur);
             } else {
@@ -203,10 +219,6 @@ impl Parser {
             }
         }
         None
-    }
-
-    fn advance(&mut self) {
-        self.cur += 1
     }
 
     fn peek(&self) -> Option<&Token> {

@@ -1,10 +1,6 @@
 use std::{fs, io, process::exit};
 
-use crate::{
-    parser::Parser,
-    scanner::{DynErr, Scanner},
-    token::Token,
-};
+use crate::{error::DynErr, parser::Parser, scanner::Scanner};
 
 pub fn run_file(file_name: &str) {
     let contents = fs::read_to_string(file_name).expect("Something went wrong reading the file");
@@ -34,12 +30,17 @@ fn run(line: &str) -> Vec<DynErr> {
     // then we scan tokens
 
     let scanner = Scanner::new(line);
-    let (tokens, errors) = scanner.scan_tokens();
+    let (tokens, mut errors) = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
 
     let expr = parser.parse();
 
-    println!("{:#?}", expr);
+    match expr {
+        Ok(expr) => {
+            println!("{:#?}", expr);
+        }
+        Err(e) => errors.push(e),
+    }
 
     errors
 }
