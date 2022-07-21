@@ -13,7 +13,7 @@ pub enum ExprType {
 #[derive(Debug, Clone)]
 pub struct Expr {
     pub expr: ExprType,
-    token: Token,
+    pub token: Token,
 }
 
 impl Expr {

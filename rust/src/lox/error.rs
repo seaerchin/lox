@@ -1,11 +1,13 @@
 use std::{
     error::Error,
     io::{Error as IoError, ErrorKind},
+    result::Result as StdResult,
 };
 
 use crate::token::{Token, TokenType};
 
 pub type DynErr = Box<dyn Error>;
+pub type Result<T> = StdResult<T, DynErr>;
 
 pub fn error(line: usize, message: &str) -> Box<dyn Error> {
     report(line, "", message)
