@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::Token;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExprType {
     Literal(RawLiteral),
     Grouping(Box<Expr>),
@@ -10,7 +10,7 @@ pub enum ExprType {
     Binary(Box<Expr>, Op, Box<Expr>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
     pub expr: ExprType,
     pub token: Token,
@@ -22,7 +22,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RawLiteral {
     Number(f64),
     String(String),
@@ -31,13 +31,13 @@ pub enum RawLiteral {
     Nil,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum UnaryOp {
     Neg,
     Not,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Op {
     EqEq,
     NotEq,

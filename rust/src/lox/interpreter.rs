@@ -1,12 +1,8 @@
-use crate::error::{self, error, Result};
-
 use super::expr::*;
+use crate::error::{error, Result};
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
-    // NOTE: we use a pointer to a dummy trait object
-    // any struct/value that implements this object means that
-    // it can be a potential runtime lox value
-    Any(Box<dyn DynamicLoxValue>),
     Nil,
     Boolean(bool),
     Number(f64),
@@ -49,20 +45,6 @@ fn eval_unary(op: UnaryOp, expr: Expr) -> Result<LoxValue> {
     let line = expr.token.line;
     let value = eval(expr)?;
     match value {
-        LoxValue::Any(val) => {
-            if let UnaryOp::Not = op {
-                if is_truthy(val) {
-                    return Ok(LoxValue::Boolean(false));
-                } else {
-                    return Ok(LoxValue::Boolean(true));
-                }
-            } else {
-                return Err(error(
-                    line,
-                    "Unable to apply negate operator to non-numeric type",
-                ));
-            }
-        }
         LoxValue::Nil => {
             return match op {
                 UnaryOp::Neg => Err(error(line, "Unable to apply negate operator to nil")),
@@ -102,18 +84,26 @@ fn eval_unary(op: UnaryOp, expr: Expr) -> Result<LoxValue> {
     }
 }
 
+// Refer to types here:
+// https://github.com/yanchith/relox/blob/master/src/value.rs
 fn eval_bin(left_expr: Expr, op: Op, right_expr: Expr) -> Result<LoxValue> {
+    let line = left_expr.token.line;
     let left = eval(left_expr)?;
     // NOTE: This is eagerly evaluated
     let right = eval(right_expr)?;
     match op {
         // if types are different, we can return false
         // else, compare
-        Op::EqEq => todo!(),
+        Op::EqEq => Ok(LoxValue::Boolean(left == right)),
         // flip above
-        Op::NotEq => todo!(),
+        Op::NotEq => Ok(LoxValue::Boolean(left != right)),
         // check if numeric else throw error
-        Op::Lesser => todo!(),
+        Op::Lesser => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => {
+                Ok(LoxValue::Boolean(left < right))
+            }
+            _ => Err(error(line, "Unable to apply negate operator to nil")),
+        },
         // ^
         Op::LEq => todo!(),
         // ^
@@ -129,11 +119,11 @@ fn eval_bin(left_expr: Expr, op: Op, right_expr: Expr) -> Result<LoxValue> {
         // ^
         Op::Slash => todo!(),
     }
-    todo!()
 }
 
 // peek at runtime val and return true if it is truthy
 // diverges from book - empty strings and 0 is falsey
+// tbc - this might be more complex for a mvp
 fn is_truthy(val: Box<dyn DynamicLoxValue>) -> bool {
     val.is_truthy()
 }
@@ -147,6 +137,7 @@ impl DynamicLoxValue for f64 {
         }
     }
 }
+
 impl DynamicLoxValue for String {
     fn is_truthy(&self) -> bool {
         return self.is_empty();
