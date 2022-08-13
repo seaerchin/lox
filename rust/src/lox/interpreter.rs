@@ -50,10 +50,6 @@ fn eval_lit(expr: RawLiteral) -> Result<LoxValue> {
     }
 }
 
-fn eval_grouping(expr: Box<Expr>) -> Result<LoxValue> {
-    eval(*expr)
-}
-
 fn execute(stmt: Statement) {
     match stmt {
         Statement::ExprStmt(expr) => {
@@ -76,7 +72,7 @@ fn execute(stmt: Statement) {
 fn eval(expr: Expr) -> Result<LoxValue> {
     match expr.expr {
         ExprType::Literal(lit) => eval_lit(lit),
-        ExprType::Grouping(expr) => eval_grouping(expr),
+        ExprType::Grouping(expr) => eval(*expr),
         ExprType::Unary(op, expr) => eval_unary(op, *expr),
         ExprType::Binary(left, op, right) => eval_bin(*left, op, *right),
     }
