@@ -1,8 +1,9 @@
 use core::panic;
 
 use crate::{
-    error::{parse_error, DynErr},
+    error::{error, parse_error, DynErr},
     expr::{Expr, ExprType, Op, RawLiteral, UnaryOp},
+    statement::Statement,
     token::{Literal, Token, TokenType},
 };
 
@@ -21,8 +22,57 @@ impl Parser {
         Parser { source, cur: 0 }
     }
 
-    pub fn parse(&mut self) -> ParserResult<Expr> {
-        return self.expr();
+    // TODO: check if this api is abit weird;
+    // the book gives this as the default api but this is
+    // given in a oop settings w/o pattern matching
+    // and ADTs
+    pub fn parse(&mut self) -> Vec<ParserResult<Statement>> {
+        let statements = vec![];
+        while self.peek().is_some() {
+            statements.push(self.statement());
+        }
+
+        statements
+    }
+
+    fn statement(&mut self) -> ParserResult<Statement> {
+        return self.expr_statement().or_else(self.print_statement());
+    }
+
+    // NOTE: This is explicitly different from how the book does it.
+    // The BNF given is statement = expr_statement | print_statement but
+    // the book first chooses to parse the print statement followed by expression statements.
+    // in here, we choose to do the converse and stay true to the BNF.
+    // do note that this time complexity is probably WAY worse than the one given
+    // in the book though :(
+    fn expr_statement(&mut self) -> ParserResult<Statement> {
+        self.expr()
+            .and_then(|expr| match self.extract(TokenType::SEMICOLON) {
+                Some(tok) => Ok(Statement::ExprStmt(expr)),
+                None => Err(error(
+                    expr.token.line,
+                    "Expression statements must be terminated by a semi-colon!",
+                )),
+            })
+            .or_else(|e| self.print_statement())
+    }
+
+    fn print_statement(&mut self) -> ParserResult<Statement> {
+        match self.extract(TokenType::PRINT) {
+            Some(tok) => self
+                .expr()
+                .and_then(|expr| match self.extract(TokenType::SEMICOLON) {
+                    Some(tok) => Ok(Statement::PrintStmt(expr)),
+                    None => Err(error(
+                        expr.token.line,
+                        "Print statements must be terminated by a semi-colon!",
+                    )),
+                }),
+            None => Err(error(
+                0,
+                "Expected print statement but could not find print keyword!",
+            )),
+        }
     }
 
     fn expr(&mut self) -> ParserResult<Expr> {
