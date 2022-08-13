@@ -35,15 +35,22 @@ fn run(line: &str) -> Vec<DynErr> {
     let (tokens, mut errors) = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
 
-    let expr = parser.parse();
+    let stmt_results = parser.parse();
+    let stmts = stmt_results
+        .iter()
+        .filter(|res| res.is_ok())
+        .map(|ok| (*ok).as_ref().unwrap().to_owned())
+        .collect();
 
-    let _ = expr
-        .and_then(|expr| interpret(expr))
-        .and_then(|s| {
-            println!("{}", s);
-            Ok(())
-        })
-        .map_err(|e| errors.push(e));
+    interpret(stmts);
+
+    let mut stmt_errors = stmt_results
+        .into_iter()
+        .filter(|res| res.is_err())
+        .map(|err| err.unwrap_err())
+        .collect();
+
+    errors.append(&mut stmt_errors);
 
     errors
 }

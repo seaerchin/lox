@@ -27,7 +27,7 @@ impl Parser {
     // given in a oop settings w/o pattern matching
     // and ADTs
     pub fn parse(&mut self) -> Vec<ParserResult<Statement>> {
-        let statements = vec![];
+        let mut statements = vec![];
         while self.peek().is_some() {
             statements.push(self.statement());
         }
@@ -36,7 +36,7 @@ impl Parser {
     }
 
     fn statement(&mut self) -> ParserResult<Statement> {
-        return self.expr_statement().or_else(self.print_statement());
+        return self.expr_statement().or_else(|_| self.print_statement());
     }
 
     // NOTE: This is explicitly different from how the book does it.

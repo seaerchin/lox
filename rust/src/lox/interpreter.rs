@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use super::expr::*;
-use crate::error::{error, Result};
+use crate::{
+    error::{error, Result},
+    statement::Statement,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
@@ -51,14 +54,32 @@ fn eval_grouping(expr: Box<Expr>) -> Result<LoxValue> {
     eval(*expr)
 }
 
+fn execute(stmt: Statement) {
+    match stmt {
+        Statement::ExprStmt(expr) => {
+            _ = eval(expr);
+        }
+        Statement::PrintStmt(expr) => {
+            _ = eval(expr)
+                .and_then(|value| {
+                    println!("{}", value.to_string());
+                    Ok(())
+                })
+                .or_else(|err| {
+                    print!("{err}");
+                    Err(())
+                });
+        }
+    }
+}
+
 fn eval(expr: Expr) -> Result<LoxValue> {
     match expr.expr {
-        ExprType::Literal(_) => todo!(),
-        ExprType::Grouping(_) => todo!(),
-        ExprType::Unary(_, _) => todo!(),
-        ExprType::Binary(_, _, _) => todo!(),
+        ExprType::Literal(lit) => eval_lit(lit),
+        ExprType::Grouping(expr) => eval_grouping(expr),
+        ExprType::Unary(op, expr) => eval_unary(op, *expr),
+        ExprType::Binary(left, op, right) => eval_bin(*left, op, *right),
     }
-    todo!()
 }
 
 // NOTE: since we have an operator here,
@@ -199,6 +220,8 @@ impl DynamicLoxValue for String {
     }
 }
 
-pub fn interpret(e: Expr) -> Result<String> {
-    eval(e).and_then(|val| Ok(val.to_string()))
+pub fn interpret(stmts: Vec<Statement>) {
+    for stmt in stmts {
+        execute(stmt)
+    }
 }
