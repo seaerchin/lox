@@ -1,6 +1,6 @@
 use std::{fs, io, process::exit};
 
-use crate::{error::DynErr, parser::Parser, scanner::Scanner};
+use crate::{error::DynErr, interpreter::interpret, parser::Parser, scanner::Scanner};
 
 pub fn run_file(file_name: &str) {
     let contents = fs::read_to_string(file_name).expect("Something went wrong reading the file");
@@ -25,22 +25,25 @@ pub fn run_prompt() {
     }
 }
 
+// NOTE: We should redesign the API here so that the monadic style
+// of doing things becomes easier.
+// The API given here is slightly messy and not ideal.
 fn run(line: &str) -> Vec<DynErr> {
     // initialize the scanner
     // then we scan tokens
-
     let scanner = Scanner::new(line);
     let (tokens, mut errors) = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
 
     let expr = parser.parse();
 
-    match expr {
-        Ok(expr) => {
-            println!("{:#?}", expr);
-        }
-        Err(e) => errors.push(e),
-    }
+    let _ = expr
+        .and_then(|expr| interpret(expr))
+        .and_then(|s| {
+            println!("{}", s);
+            Ok(())
+        })
+        .map_err(|e| errors.push(e));
 
     errors
 }

@@ -1,12 +1,34 @@
+use std::fmt::Display;
+
 use super::expr::*;
 use crate::error::{error, Result};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
+    // NOTE: we are missing a type here for the Any type present in lox
+    // as lox is a dynamic language but the host language here is Rust,
+    // which is a statically typed language
     Nil,
     Boolean(bool),
     Number(f64),
     String(String),
+}
+
+impl Display for LoxValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoxValue::Nil => write!(f, "null"),
+            LoxValue::Boolean(bool) => {
+                write!(f, "{}", bool.to_string())
+            }
+            LoxValue::Number(num) => {
+                write!(f, "{}", num.to_string())
+            }
+            LoxValue::String(s) => {
+                write!(f, "{}", s)
+            }
+        }
+    }
 }
 
 // trait marker to signify that the implementing type
@@ -102,22 +124,55 @@ fn eval_bin(left_expr: Expr, op: Op, right_expr: Expr) -> Result<LoxValue> {
             (LoxValue::Number(left), LoxValue::Number(right)) => {
                 Ok(LoxValue::Boolean(left < right))
             }
-            _ => Err(error(line, "Unable to apply negate operator to nil")),
+            _ => Err(error(line, "Unable to compare non numeric types")),
         },
         // ^
-        Op::LEq => todo!(),
+        Op::LEq => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => {
+                Ok(LoxValue::Boolean(left <= right))
+            }
+            _ => Err(error(line, "Unable to compare non numeric types")),
+        },
         // ^
-        Op::Greater => todo!(),
+        Op::Greater => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => {
+                Ok(LoxValue::Boolean(left > right))
+            }
+            _ => Err(error(line, "Unable to compare non numeric types")),
+        },
         // ^
-        Op::GEq => todo!(),
+        Op::GEq => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => {
+                Ok(LoxValue::Boolean(left >= right))
+            }
+            _ => Err(error(line, "Unable to compare non numeric types")),
+        },
         // ^ + for strings, we will append; we will NOT attempt a conversion to string but rather, report an error
-        Op::Plus => todo!(),
+        Op::Plus => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => Ok(LoxValue::Number(left + right)),
+            (LoxValue::String(left), LoxValue::String(right)) => {
+                Ok(LoxValue::String(left + &right))
+            }
+            _ => Err(error(
+                line,
+                "Unable to add non numeric types and non string types",
+            )),
+        },
         // ^
-        Op::Minus => todo!(),
+        Op::Minus => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => Ok(LoxValue::Number(left - right)),
+            _ => Err(error(line, "Unable to subtract non numeric types")),
+        },
         // ^
-        Op::Star => todo!(),
+        Op::Star => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => Ok(LoxValue::Number(left * right)),
+            _ => Err(error(line, "Unable to multiply non numeric types")),
+        },
         // ^
-        Op::Slash => todo!(),
+        Op::Slash => match (left, right) {
+            (LoxValue::Number(left), LoxValue::Number(right)) => Ok(LoxValue::Number(left / right)),
+            _ => Err(error(line, "Unable to divide non numeric types")),
+        },
     }
 }
 
@@ -142,4 +197,8 @@ impl DynamicLoxValue for String {
     fn is_truthy(&self) -> bool {
         return self.is_empty();
     }
+}
+
+pub fn interpret(e: Expr) -> Result<String> {
+    eval(e).and_then(|val| Ok(val.to_string()))
 }
