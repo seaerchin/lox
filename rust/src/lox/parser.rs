@@ -36,15 +36,11 @@ impl Parser {
     }
 
     fn statement(&mut self) -> ParserResult<Statement> {
-        return self.expr_statement().or_else(|_| self.print_statement());
+        return self.print_statement().or_else(|_| self.expr_statement());
     }
 
-    // NOTE: This is explicitly different from how the book does it.
-    // The BNF given is statement = expr_statement | print_statement but
-    // the book first chooses to parse the print statement followed by expression statements.
-    // in here, we choose to do the converse and stay true to the BNF.
-    // do note that this time complexity is probably WAY worse than the one given
-    // in the book though :(
+    // NOTE: The book gives the BNF form as exprStmt | printStmt
+    // but this results in an infinite loop.
     fn expr_statement(&mut self) -> ParserResult<Statement> {
         self.expr()
             .and_then(|expr| match self.extract(TokenType::SEMICOLON) {
@@ -54,7 +50,6 @@ impl Parser {
                     "Expression statements must be terminated by a semi-colon!",
                 )),
             })
-            .or_else(|e| self.print_statement())
     }
 
     fn print_statement(&mut self) -> ParserResult<Statement> {
@@ -255,10 +250,13 @@ impl Parser {
                 ExprType::Literal(RawLiteral::String("EOF".to_string())),
                 matched,
             )),
-            _ => panic!(),
+            _ => panic!("Unknown token"),
         }
     }
 
+    // Extracts the current token if it matches the given token type
+    // and advances the position in the stream.
+    // Otherwise, this returns None.
     fn extract(&mut self, tok_type: TokenType) -> Option<Token> {
         if let Some(cur) = self.source.get((self.cur) as usize).map(|x| x.clone()) {
             if cur.token_type == tok_type {
