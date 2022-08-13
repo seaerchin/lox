@@ -9,16 +9,16 @@ use crate::token::{Token, TokenType};
 pub type DynErr = Box<dyn Error>;
 pub type Result<T> = StdResult<T, DynErr>;
 
-pub fn error(line: usize, message: &str) -> Box<dyn Error> {
+pub fn error(line: usize, message: &str) -> DynErr {
     report(line, "", message)
 }
 
-fn report(line: usize, where_error: &str, message: &str) -> Box<dyn Error> {
+fn report(line: usize, where_error: &str, message: &str) -> DynErr {
     let message = format!("\n[line: {line}] Error {where_error}: ${message}\n");
     Box::new(IoError::new(ErrorKind::InvalidData, message))
 }
 
-pub fn parse_error(token: &Token, message: &str) -> Box<dyn Error> {
+pub fn parse_error(token: &Token, message: &str) -> DynErr {
     if token.token_type == TokenType::EOF {
         report(token.line, " at end", message)
     } else {
