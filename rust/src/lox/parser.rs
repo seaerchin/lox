@@ -29,10 +29,45 @@ impl Parser {
     pub fn parse(&mut self) -> Vec<ParserResult<Statement>> {
         let mut statements = vec![];
         while self.peek().is_some() {
-            statements.push(self.statement());
+            statements.push(self.declaration());
         }
 
         statements
+    }
+
+    fn declaration(&mut self) -> ParserResult<Statement> {
+        let res = match self.extract(TokenType::VAR) {
+            Some(tok) => self.var_declaration(),
+            None => self.declaration(),
+        };
+
+        // sync so that future passes won't propagate this error
+        res.map_err(|err| {
+            self.synchronize();
+            err
+        })
+    }
+
+    fn var_declaration(&mut self) -> ParserResult<Statement> {
+        // we already matched var in the previous block
+        // now we need to match =
+        // and after that, an expression giving the value of the token
+        self.extract_or(TokenType::IDENTIFIER, "Expected IDENT")
+            // the equal is discarded - we just need proof of existence
+            .and_then(|ident| {
+                self.extract_or(TokenType::EQUAL, "Expected EQUALS")
+                    .and_then(|_| self.expr().map(|expr| Statement::Var(ident.clone(), expr)))
+                    // if there's no equal sign matched, just set the expr to null
+                    .or_else(|_| {
+                        Ok(Statement::Var(
+                            ident.clone(),
+                            Expr::new(
+                                ExprType::Literal(RawLiteral::Nil),
+                                Token::new(TokenType::NIL, &"nil", Literal::None, ident.line),
+                            ),
+                        ))
+                    })
+            })
     }
 
     fn statement(&mut self) -> ParserResult<Statement> {
@@ -42,6 +77,7 @@ impl Parser {
     // NOTE: The book gives the BNF form as exprStmt | printStmt
     // but this results in an infinite loop.
     fn expr_statement(&mut self) -> ParserResult<Statement> {
+        // matches an expression followed by a semicolon or gives an error otherwise
         self.expr()
             .and_then(|expr| match self.extract(TokenType::SEMICOLON) {
                 Some(tok) => Ok(Statement::ExprStmt(expr)),
@@ -202,6 +238,7 @@ impl Parser {
             .or(self.extract(TokenType::TRUE))
             .or(self.extract(TokenType::FALSE))
             .or(self.extract(TokenType::NIL))
+            .or(self.extract(TokenType::IDENTIFIER))
             .or(self.extract(TokenType::LEFT_PAREN))
             .or(self.extract(TokenType::EOF))
             .unwrap_or_else(|| {
@@ -215,6 +252,10 @@ impl Parser {
 
         match matched.token_type {
             TokenType::LEFT_PAREN => {
+                // NOTE: We might wish to edit this like so:
+                // if we have a valid expr -> parse right paren
+                // if NO valid expr, still try to parse right paren
+                // if we succeed in the second case, this implies ()
                 let expr = self.expr();
                 if let Some(_) = self.extract(TokenType::RIGHT_PAREN) {
                     return expr;
@@ -250,6 +291,7 @@ impl Parser {
                 ExprType::Literal(RawLiteral::String("EOF".to_string())),
                 matched,
             )),
+            TokenType::IDENTIFIER => Ok(Expr::new(ExprType::Variable(matched.clone()), matched)),
             _ => panic!("Unknown token"),
         }
     }
@@ -267,6 +309,27 @@ impl Parser {
             }
         }
         None
+    }
+
+    fn extract_or(&mut self, tok_type: TokenType, error_msg: &str) -> ParserResult<Token> {
+        self.extract(tok_type)
+            .ok_or_else(|| error(self.cur_tok().unwrap().line, error_msg))
+
+        // match self.source.get(self.cur as usize) {
+        //     Some(token) => self
+        //         .extract(tok_type)
+        //         .ok_or_else(|| (error(token.line, error_msg))),
+        //     None => {
+        //         return Err(error(
+        //             0,
+        //             "Attempted to extract token at end of input stream",
+        //         ))
+        //     }
+        // }
+    }
+
+    fn cur_tok(&self) -> Option<&Token> {
+        return self.source.get(self.cur as usize);
     }
 
     fn peek(&self) -> Option<&Token> {

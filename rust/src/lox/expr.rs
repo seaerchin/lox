@@ -8,6 +8,7 @@ pub enum ExprType {
     Grouping(Box<Expr>),
     Unary(UnaryOp, Box<Expr>),
     Binary(Box<Expr>, Op, Box<Expr>),
+    Variable(Token),
 }
 
 #[derive(Debug, Clone, PartialEq)]
