@@ -37,7 +37,7 @@ impl Parser {
 
     fn declaration(&mut self) -> ParserResult<Statement> {
         let res = match self.extract(TokenType::VAR) {
-            Some(tok) => self.var_declaration(),
+            Some(_tok) => self.var_declaration(),
             None => self.declaration(),
         };
 
@@ -50,7 +50,7 @@ impl Parser {
 
     fn var_declaration(&mut self) -> ParserResult<Statement> {
         // we already matched var in the previous block
-        // now we need to match =
+        // now we need to match `=`
         // and after that, an expression giving the value of the token
         self.extract_or(TokenType::IDENTIFIER, "Expected IDENT")
             // the equal is discarded - we just need proof of existence
@@ -107,7 +107,17 @@ impl Parser {
     }
 
     fn expr(&mut self) -> ParserResult<Expr> {
-        self.eq()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> ParserResult<Expr> {
+        match self.extract(TokenType::IDENTIFIER) {
+            Some(ident) => self
+                .extract(TokenType::EQUAL)
+                .map(|_| Expr::new(ExprType::Variable(ident.clone()), ident.clone()))
+                .ok_or(error(ident.line, "Expeced EQUALS")),
+            None => self.eq(),
+        }
     }
 
     // TODO: simplify all this code
@@ -398,4 +408,8 @@ fn convert_unary_op(token: Token) -> UnaryOp {
         TokenType::BANG => UnaryOp::Not,
         _ => todo!(),
     }
+}
+
+fn with_line_no(opt: Option<Token>, line: usize) -> ParserResult<Token> {
+    opt.ok_or_else(|| error(line, &"Unable to parse the required token"))
 }

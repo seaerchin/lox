@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use super::expr::*;
 use crate::{
+    env::Env,
     error::{error, Result},
     statement::Statement,
 };
@@ -50,13 +51,13 @@ fn eval_lit(expr: RawLiteral) -> Result<LoxValue> {
     }
 }
 
-fn execute(stmt: Statement) {
+fn execute(env: &mut Env, stmt: Statement) {
     match stmt {
         Statement::ExprStmt(expr) => {
-            _ = eval(expr);
+            _ = eval(env, expr);
         }
         Statement::PrintStmt(expr) => {
-            _ = eval(expr)
+            _ = eval(env, expr)
                 .and_then(|value| {
                     println!("{}", value.to_string());
                     Ok(())
@@ -66,23 +67,49 @@ fn execute(stmt: Statement) {
                     Err(())
                 });
         }
+        Statement::Var(ident, expr) => match expr.expr {
+            // If the literal matched is nil, we don't evaluate
+            // as it might blow up
+            ExprType::Literal(RawLiteral::Nil) => {
+                env.define(ident.lexeme, LoxValue::Nil);
+            }
+            _ => {
+                // Just define as a side effect and omit the result
+                // if we fail the initial eval, we still don't do anything
+                let _ = eval(env, expr)
+                    .and_then(|value| {
+                        env.define(ident.lexeme.clone(), value);
+                        Ok(())
+                    })
+                    // ignore the error - just put null into the env
+                    .map_err(|_| {
+                        env.define(ident.lexeme, LoxValue::Nil);
+                        ()
+                    });
+            }
+        },
     }
 }
 
-fn eval(expr: Expr) -> Result<LoxValue> {
+fn eval(env: &mut Env, expr: Expr) -> Result<LoxValue> {
     match expr.expr {
         ExprType::Literal(lit) => eval_lit(lit),
-        ExprType::Grouping(expr) => eval(*expr),
-        ExprType::Unary(op, expr) => eval_unary(op, *expr),
-        ExprType::Binary(left, op, right) => eval_bin(*left, op, *right),
+        ExprType::Grouping(expr) => eval(env, *expr),
+        ExprType::Unary(op, expr) => eval_unary(env, op, *expr),
+        ExprType::Binary(left, op, right) => eval_bin(env, *left, op, *right),
+        // The token given in a variable always refers to the identifier
+        ExprType::Variable(ident) => env.get(&ident).map(|val| val.to_owned()).ok_or(error(
+            ident.line,
+            "Expected value to exist in environment but none was found",
+        )),
     }
 }
 
 // NOTE: since we have an operator here,
 // we will choose to crash if the type doesn't match
-fn eval_unary(op: UnaryOp, expr: Expr) -> Result<LoxValue> {
+fn eval_unary(env: &mut Env, op: UnaryOp, expr: Expr) -> Result<LoxValue> {
     let line = expr.token.line;
-    let value = eval(expr)?;
+    let value = eval(env, expr)?;
     match value {
         LoxValue::Nil => {
             return match op {
@@ -125,11 +152,11 @@ fn eval_unary(op: UnaryOp, expr: Expr) -> Result<LoxValue> {
 
 // Refer to types here:
 // https://github.com/yanchith/relox/blob/master/src/value.rs
-fn eval_bin(left_expr: Expr, op: Op, right_expr: Expr) -> Result<LoxValue> {
+fn eval_bin(env: &mut Env, left_expr: Expr, op: Op, right_expr: Expr) -> Result<LoxValue> {
     let line = left_expr.token.line;
-    let left = eval(left_expr)?;
+    let left = eval(env, left_expr)?;
     // NOTE: This is eagerly evaluated
-    let right = eval(right_expr)?;
+    let right = eval(env, right_expr)?;
     match op {
         // if types are different, we can return false
         // else, compare
@@ -216,8 +243,12 @@ impl DynamicLoxValue for String {
     }
 }
 
-pub fn interpret(stmts: Vec<Statement>) {
+// NOTE: The abstraction that we truly want here
+// is a monadic API (the state monad is ideal here)
+// for our environment so the underlying methods (var decl)
+// don't have to thread env through but oh well.
+pub fn interpret(env: &mut Env, stmts: Vec<Statement>) {
     for stmt in stmts {
-        execute(stmt)
+        execute(env, stmt)
     }
 }

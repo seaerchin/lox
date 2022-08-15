@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::expr::Expr;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -6,6 +8,18 @@ pub enum Literal {
     Number(f64),
     String(String),
     None,
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let lit = match self {
+            Literal::Number(n) => n.to_string(),
+            Literal::String(s) => s.clone(),
+            Literal::None => "None".to_string(),
+        };
+
+        write!(f, "{lit}")
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]

@@ -1,10 +1,11 @@
 use std::{fs, io, process::exit};
 
-use crate::{error::DynErr, interpreter::interpret, parser::Parser, scanner::Scanner};
+use crate::{env::Env, error::DynErr, interpreter::interpret, parser::Parser, scanner::Scanner};
 
 pub fn run_file(file_name: &str) {
     let contents = fs::read_to_string(file_name).expect("Something went wrong reading the file");
-    let errors = run(&contents);
+    let mut env = Env::new();
+    let errors = run(&mut env, &contents);
     if errors.len() > 0 {
         exit(65);
     }
@@ -12,6 +13,10 @@ pub fn run_file(file_name: &str) {
 
 pub fn run_prompt() {
     let stdin = io::stdin();
+    // we initialise the environment outside the loop
+    // so that variable definitions persist throughout
+    // the duration of the session
+    let mut env = Env::new();
     loop {
         let mut buf = String::new();
         print!("> ");
@@ -21,14 +26,14 @@ pub fn run_prompt() {
         if buf.is_empty() {
             break;
         }
-        let _ = run(&buf);
+        let _ = run(&mut env, &buf);
     }
 }
 
 // NOTE: We should redesign the API here so that the monadic style
 // of doing things becomes easier.
 // The API given here is slightly messy and not ideal.
-fn run(line: &str) -> Vec<DynErr> {
+fn run(env: &mut Env, line: &str) -> Vec<DynErr> {
     // initialize the scanner
     // then we scan tokens
     let scanner = Scanner::new(line);
@@ -42,7 +47,7 @@ fn run(line: &str) -> Vec<DynErr> {
         .map(|ok| (*ok).as_ref().unwrap().to_owned())
         .collect();
 
-    interpret(stmts);
+    interpret(env, stmts);
 
     let mut stmt_errors = stmt_results
         .into_iter()

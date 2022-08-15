@@ -25,6 +25,7 @@ fn paren(name: &str, expr: ExprType) -> String {
 
             cur_rep += &consolidated;
         }
+        ExprType::Variable(tok) => cur_rep += &tok.literal.to_string(),
     }
 
     return format!("{cur_rep})");
