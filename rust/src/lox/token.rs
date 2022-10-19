@@ -1,13 +1,12 @@
 use std::fmt::Display;
 
-use crate::expr::Expr;
-
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 // A literal can only exist as one of a few different variants
 pub enum Literal {
     Number(f64),
     String(String),
     None,
+    EOF,
 }
 
 impl Display for Literal {
@@ -16,6 +15,7 @@ impl Display for Literal {
             Literal::Number(n) => n.to_string(),
             Literal::String(s) => s.clone(),
             Literal::None => "None".to_string(),
+            Literal::EOF => "EOF".to_string(),
         };
 
         write!(f, "{lit}")
@@ -97,8 +97,9 @@ impl Token {
     }
 }
 
-impl Into<Expr> for Token {
-    fn into(self) -> Expr {
-        todo!()
-    }
+// tbd - a list of scanner errors
+pub enum ScannerError {
+    IncompleteLexeme,
 }
+
+pub type TokenResult = Result<Token, ScannerError>;
