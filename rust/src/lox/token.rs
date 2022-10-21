@@ -76,11 +76,11 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub literal: Literal,
-    pub line: usize,
+    pub line: u64,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: &str, literal: Literal, line: usize) -> Self {
+    pub fn new(token_type: TokenType, lexeme: &str, literal: Literal, line: u64) -> Self {
         Token {
             token_type,
             lexeme: lexeme.to_owned(),

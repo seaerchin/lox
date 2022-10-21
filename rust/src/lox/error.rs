@@ -9,11 +9,11 @@ use crate::token::{Token, TokenType};
 pub type DynErr = Box<dyn Error>;
 pub type Result<T> = StdResult<T, DynErr>;
 
-pub fn error(line: usize, message: &str) -> DynErr {
+pub fn error(line: u64, message: &str) -> DynErr {
     report(line, "", message)
 }
 
-fn report(line: usize, where_error: &str, message: &str) -> DynErr {
+fn report(line: u64, where_error: &str, message: &str) -> DynErr {
     let message = format!("\n[line: {line}] Error {where_error}: ${message}\n");
     Box::new(IoError::new(ErrorKind::InvalidData, message))
 }
